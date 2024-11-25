@@ -1,38 +1,37 @@
 # Chat Application
 
-Ứng dụng chat realtime được xây dựng với Go Fiber framework và PostgreSQL.
+A real-time chat application built with Go Fiber framework and PostgreSQL.
 
-## Tính năng
+## Features
 
 - Authentication (JWT)
-- Real-time chat với WebSocket 
-- Phòng chat (Tạo và tham gia)
-- Tin nhắn riêng tư
-- Trạng thái online/offline
-- Upload file
-- Lưu trữ lịch sử chat
-- Thông báo tin nhắn mới
-- Xem trạng thái đã xem tin nhắn
+- Real-time chat with WebSocket
+- Chat rooms (Create and join)
+- Private messaging
+- Online/offline status
+- File upload
+- Chat history storage
+- New message notifications
+- Message read status
 
-## Cấu trúc Project
+## Project Structure
 
 chat-app/
-├── config/             # Cấu hình ứng dụng
-├── internal/           # Mã nguồn chính
-│   ├── database/      # Kết nối và migration DB
-│   ├── handlers/      # Xử lý request
+├── config/             # Application configuration
+├── internal/           # Core source code
+│   ├── database/      # DB connection and migration
+│   ├── handlers/      # Request handlers
 │   ├── middleware/    # Middleware
-│   ├── models/        # Model dữ liệu
-│   ├── routes/        # Định tuyến
-│   └── websocket/     # Xử lý WebSocket
-├── uploads/           # Thư mục lưu file upload
-├── main.go           # Entry point
+│   ├── models/        # Data models
+│   ├── routes/        # Routing
+│   └── websocket/     # WebSocket handling
+├── uploads/           # Upload directory
+├── main.go            # Entry point
 └── README.md
 
-## Cài đặt
+\n\n## Installation
 
 1. Clone repository:
-
 
 
 
