@@ -8,7 +8,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"log"
-	"time"
 	//"strings"
 )
 
@@ -25,53 +24,21 @@ func NewAuthHandler(db *gorm.DB, secret string) *AuthHandler {
 }
 
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
-	var registerData struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-		 Email    string `json:"email"`
-	}
-
-	if err := c.BodyParser(&registerData); err != nil {
-		log.Printf("Parse error: %v", err)
+	var user models.User
+	if err := c.BodyParser(&user); err != nil {
 		return c.Status(constants.StatusBadRequest).JSON(fiber.Map{
 			"code": constants.StatusBadRequest,
 			"message": constants.ErrInvalidRequest,
 		})
 	}
 
-	// Validate dữ liệu trống
-	if registerData.Username == "" || registerData.Password == "" || registerData.Email == "" {
-		return c.Status(constants.StatusBadRequest).JSON(fiber.Map{
-			"code": constants.StatusBadRequest,
-			"message": "Username, password và email không được để trống",
-		})
-	}
-
-	// Kiểm tra username đã tồn tại
-	var existingUser models.User
-	if err := h.db.Where("username = ?", registerData.Username).First(&existingUser).Error; err == nil {
-		return c.Status(constants.StatusBadRequest).JSON(fiber.Map{
-			"code": constants.StatusBadRequest,
-			"message": "Username đã tồn tại",
-		})
-	}
-
-	// Kiểm tra email đã tồn tại
-	if err := h.db.Where("email = ?", registerData.Email).First(&existingUser).Error; err == nil {
-		return c.Status(constants.StatusBadRequest).JSON(fiber.Map{
-			"code": constants.StatusBadRequest,
-			"message": "Email đã tồn tại",
-		})
-	}
-
 	// Debug thông tin
 	log.Printf("Register attempt:")
-	log.Printf("Username: %s", registerData.Username)
-	log.Printf("Password length: %d", len(registerData.Password))
-	log.Printf("Email: %s", registerData.Email)
-
+	log.Printf("Username: %s", user.Username)
+	log.Printf("Password length: %d", len(user.Password))
+	
 	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(registerData.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Printf("Hash generation failed: %v", err)
 		return c.Status(constants.StatusServerError).JSON(fiber.Map{
@@ -80,18 +47,12 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		})
 	}
 
-	// Tạo user mới
-	user := models.User{
-		Username: registerData.Username,
-		Password: string(hashedPassword),
-		Email:    registerData.Email,
-		LastSeen: time.Now(),
-	}
-
 	// Log hash được tạo
 	log.Printf("Generated hash: %s", string(hashedPassword))
+	
+	user.Password = string(hashedPassword)
 
-	// Lưu vào DB
+	// Lưu vào DB và log kết quả
 	if err := h.db.Create(&user).Error; err != nil {
 		log.Printf("DB save failed: %v", err)
 		return c.Status(constants.StatusServerError).JSON(fiber.Map{
@@ -100,7 +61,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		})
 	}
 
-	// Verify sau khi lưu
+	// Verify ngay sau khi tạo
 	var savedUser models.User
 	h.db.First(&savedUser, user.ID)
 	log.Printf("Saved hash: %s", savedUser.Password)
@@ -108,11 +69,6 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	return c.Status(constants.StatusCreated).JSON(fiber.Map{
 		"code": constants.StatusCreated,
 		"message": constants.MsgUserCreated,
-		"data": fiber.Map{
-			"id": user.ID,
-			"username": user.Username,
-			"email": user.Email,
-		},
 	})
 }
 
@@ -124,7 +80,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&loginData); err != nil {
 		return c.Status(constants.StatusBadRequest).JSON(fiber.Map{
-			"code":    constants.StatusBadRequest,
+			"code": constants.StatusBadRequest,
 			"message": constants.ErrInvalidRequest,
 		})
 	}
@@ -132,7 +88,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	var user models.User
 	if err := h.db.Where("username = ?", loginData.Username).First(&user).Error; err != nil {
 		return c.Status(constants.StatusUnauthorized).JSON(fiber.Map{
-			"code":    constants.StatusUnauthorized,
+			"code": constants.StatusUnauthorized,
 			"message": constants.ErrInvalidCredentials,
 		})
 	}
@@ -142,7 +98,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	log.Printf("Username: %s", loginData.Username)
 	log.Printf("Password length: %d", len(loginData.Password))
 	log.Printf("Stored hash length: %d", len(user.Password))
-
+	
 	// Kiểm tra xem có ký tự đặc biệt nào không
 	log.Printf("Password bytes: %v", []byte(loginData.Password))
 	log.Printf("Hash bytes: %v", []byte(user.Password))
@@ -151,14 +107,14 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginData.Password))
 	if err != nil {
 		log.Printf("Password comparison failed: %v", err)
-
+		
 		// Thử tạo hash mới và so sánh trực tiếp
 		newHash, _ := bcrypt.GenerateFromPassword([]byte(loginData.Password), bcrypt.DefaultCost)
 		log.Printf("Original hash: %s", user.Password)
 		log.Printf("New hash: %s", string(newHash))
-
+		
 		return c.Status(constants.StatusUnauthorized).JSON(fiber.Map{
-			"code":    constants.StatusUnauthorized,
+			"code": constants.StatusUnauthorized,
 			"message": constants.ErrInvalidCredentials,
 		})
 	}
@@ -166,21 +122,21 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	token, err := utils.GenerateToken(user.ID, h.secret)
 	if err != nil {
 		return c.Status(constants.StatusServerError).JSON(fiber.Map{
-			"code":    constants.StatusServerError,
+			"code": constants.StatusServerError,
 			"message": constants.ErrGeneratingToken,
 		})
 	}
 
 	return c.Status(constants.StatusOK).JSON(fiber.Map{
-		"code":    constants.StatusOK,
+		"code": constants.StatusOK,
 		"message": constants.MsgLoginSuccess,
 		"data": fiber.Map{
 			"token": token,
 			"user": fiber.Map{
-				"id":       user.ID,
+				"id": user.ID,
 				"username": user.Username,
-				"email":    user.Email,
+				"email": user.Email,
 			},
 		},
 	})
-}
+} 

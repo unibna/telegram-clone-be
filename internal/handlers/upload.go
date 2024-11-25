@@ -35,7 +35,11 @@ func (h *UploadHandler) UploadFile(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(fiber.Map{
-		"url": fmt.Sprintf("/uploads/%s", filename),
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": fiber.StatusOK,
+		"message": "File uploaded successfully",
+		"data": fiber.Map{
+			"url": fmt.Sprintf("/uploads/%s", filename),
+		},
 	})
 } 

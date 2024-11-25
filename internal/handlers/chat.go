@@ -34,7 +34,11 @@ func (h *ChatHandler) SendMessage(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(message)
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status": fiber.StatusCreated,
+		"message": "Message sent successfully",
+		"data": message,
+	})
 }
 
 func (h *ChatHandler) GetMessages(c *fiber.Ctx) error {
@@ -45,5 +49,8 @@ func (h *ChatHandler) GetMessages(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(messages)
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": fiber.StatusOK,
+		"data": messages,
+	})
 } 

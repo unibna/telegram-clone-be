@@ -2,10 +2,10 @@ package database
 
 import (
 	"chat-app/config"
-	"chat-app/internal/models"
 	"fmt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func InitDB(config *config.Config) (*gorm.DB, error) {
@@ -17,16 +17,25 @@ func InitDB(config *config.Config) (*gorm.DB, error) {
 		config.DBPort,
 	)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// Cấu hình GORM
+	gormConfig := &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent), // Tắt SQL logging
+		DisableForeignKeyConstraintWhenMigrating: true,
+	}
+
+	db, err := gorm.Open(postgres.Open(dsn), gormConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	// Auto Migrate
-	err = db.AutoMigrate(&models.User{}, &models.Message{})
+	// Cấu hình connection pool
+	sqlDB, err := db.DB()
 	if err != nil {
 		return nil, err
 	}
+
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
 
 	return db, nil
 } 

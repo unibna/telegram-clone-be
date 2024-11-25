@@ -31,7 +31,6 @@ chat-app/
 
 \n\n## Installation
 
-1. Clone repository:
 
 
 

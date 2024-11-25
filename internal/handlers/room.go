@@ -30,7 +30,11 @@ func (h *RoomHandler) CreateRoom(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(room)
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status": fiber.StatusCreated,
+		"message": "Room created successfully",
+		"data": room,
+	})
 }
 
 func (h *RoomHandler) JoinRoom(c *fiber.Ctx) error {
@@ -58,7 +62,8 @@ func (h *RoomHandler) JoinRoom(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": fiber.StatusOK,
 		"message": "Successfully joined room",
 	})
 } 
