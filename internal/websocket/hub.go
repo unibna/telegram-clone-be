@@ -1,111 +1,55 @@
 package websocket
 
 import (
-	"encoding/json"
-	"github.com/gofiber/websocket/v2"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/gofiber/websocket/v2"
+)
+
+const (
+	// Time allowed to write a message to the peer.
+	WriteWait = 10 * time.Second
+
+	// Time allowed to read the next pong message from the peer.
+	PongWait = 60 * time.Second
+
+	// Send pings to peer with this period. Must be less than pongWait.
+	PingPeriod = (PongWait * 9) / 10
+
+	// Maximum message size allowed from peer.
+	MaxMessageSize = 512 * 1024 // 512KB
 )
 
 type Message struct {
-	Type      string  `json:"type"`
-	Content   string  `json:"content"`
-	UserID    uint    `json:"user_id"`
-	RoomID    string  `json:"room_id"`
-	ToUserID  *uint   `json:"to_user_id,omitempty"`
-	FileURL   string  `json:"file_url,omitempty"`
-	Timestamp string  `json:"timestamp"`
+	Type       string    `json:"type"` // "direct", "notification"
+	MessageID  uint      `json:"message_id,omitempty"`
+	SenderID   uint      `json:"sender_id,omitempty"`
+	ReceiverID uint      `json:"receiver_id,omitempty"`
+	Content    string    `json:"content"`
+	CreatedAt  time.Time `json:"created_at,omitempty"`
+	Delivered  bool      `json:"delivered,omitempty"`
+	Read       bool      `json:"read,omitempty"`
 }
 
 type Client struct {
-	Hub    *Hub
-	Conn   *websocket.Conn
-	Send   chan []byte
-	UserID uint
-	RoomID string
+	Hub     *Hub
+	Conn    *websocket.Conn
+	Send    chan []byte
+	UserID  uint
+	RoomID  string
+	mu      sync.Mutex
+	IsAlive bool
 }
 
 type Hub struct {
+	mu         sync.RWMutex
 	clients    map[*Client]bool
 	broadcast  chan []byte
 	Register   chan *Client
 	Unregister chan *Client
-	rooms      map[string]map[*Client]bool
-	userStatus map[uint]bool
-	mu         sync.Mutex
-}
-
-const (
-	writeWait      = 10 * time.Second
-	pongWait       = 60 * time.Second
-	pingPeriod     = (pongWait * 9) / 10
-	maxMessageSize = 512
-)
-
-func (c *Client) ReadPump() {
-	defer func() {
-		c.Hub.Unregister <- c
-		c.Conn.Close()
-	}()
-
-	c.Conn.SetReadLimit(maxMessageSize)
-	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
-	c.Conn.SetPongHandler(func(string) error {
-		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
-		return nil
-	})
-
-	for {
-		_, message, err := c.Conn.ReadMessage()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
-			}
-			break
-		}
-		c.Hub.broadcast <- message
-	}
-}
-
-func (c *Client) WritePump() {
-	ticker := time.NewTicker(pingPeriod)
-	defer func() {
-		ticker.Stop()
-		c.Conn.Close()
-	}()
-
-	for {
-		select {
-		case message, ok := <-c.Send:
-			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
-			if !ok {
-				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
-				return
-			}
-
-			w, err := c.Conn.NextWriter(websocket.TextMessage)
-			if err != nil {
-				return
-			}
-			w.Write(message)
-
-			n := len(c.Send)
-			for i := 0; i < n; i++ {
-				w.Write([]byte{'\n'})
-				w.Write(<-c.Send)
-			}
-
-			if err := w.Close(); err != nil {
-				return
-			}
-		case <-ticker.C:
-			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
-			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				return
-			}
-		}
-	}
+	UserConns  map[uint]*Client // Map userID to their connection
 }
 
 func NewHub() *Hub {
@@ -114,8 +58,7 @@ func NewHub() *Hub {
 		broadcast:  make(chan []byte),
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
-		rooms:      make(map[string]map[*Client]bool),
-		userStatus: make(map[uint]bool),
+		UserConns:  make(map[uint]*Client),
 	}
 }
 
@@ -124,54 +67,54 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.Register:
 			h.mu.Lock()
+			// Unregister existing connection if any
+			if oldClient, exists := h.UserConns[client.UserID]; exists {
+				delete(h.clients, oldClient)
+				close(oldClient.Send)
+			}
 			h.clients[client] = true
-			if _, ok := h.rooms[client.RoomID]; !ok {
-				h.rooms[client.RoomID] = make(map[*Client]bool)
-			}
-			h.rooms[client.RoomID][client] = true
-			h.userStatus[client.UserID] = true
+			h.UserConns[client.UserID] = client
+			client.IsAlive = true
 			h.mu.Unlock()
-
-			// Broadcast online status
-			status := Message{
-				Type:    "status",
-				UserID:  client.UserID,
-				Content: "online",
-			}
-			statusJSON, _ := json.Marshal(status)
-			h.broadcast <- statusJSON
+			log.Printf("Client connected. UserID: %d", client.UserID)
 
 		case client := <-h.Unregister:
 			h.mu.Lock()
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
-				delete(h.rooms[client.RoomID], client)
-				h.userStatus[client.UserID] = false
+				delete(h.UserConns, client.UserID)
 				close(client.Send)
+				client.IsAlive = false
 			}
 			h.mu.Unlock()
-
-			// Broadcast offline status
-			status := Message{
-				Type:    "status",
-				UserID:  client.UserID,
-				Content: "offline",
-			}
-			statusJSON, _ := json.Marshal(status)
-			h.broadcast <- statusJSON
-
-		case message := <-h.broadcast:
-			for client := range h.clients {
-				select {
-				case client.Send <- message:
-				default:
-					h.mu.Lock()
-					delete(h.clients, client)
-					delete(h.rooms[client.RoomID], client)
-					close(client.Send)
-					h.mu.Unlock()
-				}
-			}
+			log.Printf("Client disconnected. UserID: %d", client.UserID)
 		}
 	}
-} 
+}
+
+// SendToUser sends a message to a specific user
+func (h *Hub) SendToUser(targetUserID uint, message []byte) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	if client, ok := h.UserConns[targetUserID]; ok && client.IsAlive {
+		select {
+		case client.Send <- message:
+			return true
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+// IsUserOnline checks if a user is currently connected
+func (h *Hub) IsUserOnline(userID uint) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	if client, ok := h.UserConns[userID]; ok {
+		return client.IsAlive
+	}
+	return false
+}

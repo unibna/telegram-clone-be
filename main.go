@@ -33,7 +33,7 @@ func main() {
 		AuthHandler:  handlers.NewAuthHandler(db, cfg.JWTSecret),
 		ChatHandler: handlers.NewChatHandler(db),
 		RoomHandler: handlers.NewRoomHandler(db),
-		WSHandler:   handlers.NewWebSocketHandler(db),
+		WSHandler:   handlers.NewWebSocketHandler(db, cfg.JWTSecret),
 	}
 
 	// Khởi chạy WebSocket hub
@@ -44,4 +44,4 @@ func main() {
 
 	// Start server
 	log.Fatal(app.Listen(":3000"))
-} 
+}

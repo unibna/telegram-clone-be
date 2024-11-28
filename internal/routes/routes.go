@@ -41,9 +41,11 @@ func SetupRoutes(app *fiber.App, h *Handlers, jwtSecret string) {
 	chat := protected.Group("/chat")
 	chat.Post("/messages", h.ChatHandler.SendMessage)
 	chat.Get("/messages", h.ChatHandler.GetMessages)
+	chat.Post("/direct", h.ChatHandler.SendDirectMessage)
+	chat.Get("/direct", h.ChatHandler.GetDirectMessages)
 
 	// Room routes
 	rooms := protected.Group("/rooms")
 	rooms.Post("/", h.RoomHandler.CreateRoom)
 	rooms.Post("/:roomID/join", h.RoomHandler.JoinRoom)
-} 
+}
