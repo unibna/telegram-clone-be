@@ -3,15 +3,16 @@ package routes
 import (
 	"chat-app/internal/handlers"
 	"chat-app/internal/middleware"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
 )
 
 type Handlers struct {
-	AuthHandler    *handlers.AuthHandler
-	ChatHandler   *handlers.ChatHandler
-	RoomHandler   *handlers.RoomHandler
-	WSHandler     *handlers.WebSocketHandler
+	AuthHandler *handlers.AuthHandler
+	ChatHandler *handlers.ChatHandler
+	RoomHandler *handlers.RoomHandler
+	WSHandler   *handlers.WebSocketHandler
 }
 
 func SetupRoutes(app *fiber.App, h *Handlers, jwtSecret string) {
@@ -23,7 +24,7 @@ func SetupRoutes(app *fiber.App, h *Handlers, jwtSecret string) {
 		}
 		return fiber.ErrUpgradeRequired
 	})
-
+	app.Use("/ws", middleware.AuthMiddleware(jwtSecret))
 	app.Get("/ws", websocket.New(h.WSHandler.HandleWebSocket))
 
 	// API routes
