@@ -15,4 +15,4 @@ type Room struct {
 type RoomUser struct {
 	RoomID uint `gorm:"primaryKey"`
 	UserID uint `gorm:"primaryKey"`
-} 
+}
