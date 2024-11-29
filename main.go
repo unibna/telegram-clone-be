@@ -30,9 +30,10 @@ func main() {
 
 	// Initialize handlers
 	h := &routes.Handlers{
-		AuthHandler:  handlers.NewAuthHandler(db, cfg.JWTSecret),
+		AuthHandler: handlers.NewAuthHandler(db, cfg.JWTSecret),
 		ChatHandler: handlers.NewChatHandler(db),
 		RoomHandler: handlers.NewRoomHandler(db),
+		UserHandler: handlers.NewUserHandler(db),
 		WSHandler:   handlers.NewWebSocketHandler(db, cfg.JWTSecret),
 	}
 
