@@ -12,6 +12,7 @@ type Handlers struct {
 	AuthHandler *handlers.AuthHandler
 	ChatHandler *handlers.ChatHandler
 	RoomHandler *handlers.RoomHandler
+	UserHandler *handlers.UserHandler
 	WSHandler   *handlers.WebSocketHandler
 }
 
@@ -51,4 +52,10 @@ func SetupRoutes(app *fiber.App, h *Handlers, jwtSecret string) {
 	rooms.Post("/:roomID/join", h.RoomHandler.JoinRoom)
 	rooms.Get("/me", h.RoomHandler.GetMyChatRooms)
 	rooms.Get("/:roomID/messages", h.RoomHandler.GetRoomMessages)
+
+	// User routes
+	users := protected.Group("/users")
+	users.Get("/", h.UserHandler.ListUser)
+	users.Post("/add_contact", h.UserHandler.AddContactUser)
+	users.Get("/list_contact", h.UserHandler.ListContactUser)
 }
