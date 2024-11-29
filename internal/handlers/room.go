@@ -75,7 +75,7 @@ func (h *RoomHandler) GetMyChatRooms(c *fiber.Ctx) error {
 	roomUsers := []models.RoomUser{}
 	if err := h.db.Model(&models.RoomUser{}).
 		Where("user_id = ?", userID).
-		Find(roomUsers).Error; err != nil {
+		Find(&roomUsers).Error; err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Invalid request",
 		})
@@ -84,14 +84,14 @@ func (h *RoomHandler) GetMyChatRooms(c *fiber.Ctx) error {
 	roomIDs := []uint{}
 
 	for _, roomUser := range roomUsers {
-		roomIDs = append(roomIDs, roomUser.UserID)
+		roomIDs = append(roomIDs, roomUser.RoomID)
 	}
 
 	rooms := []models.Room{}
 
 	if err := h.db.Model(&models.Room{}).
 		Where("id IN ?", roomIDs).
-		Find(rooms).Error; err != nil {
+		Find(&rooms).Error; err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Invalid request",
 		})
@@ -106,14 +106,13 @@ func (h *RoomHandler) GetMyChatRooms(c *fiber.Ctx) error {
 
 // Get all messages inside a chat room.
 func (h *RoomHandler) GetRoomMessages(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(uint)
 	roomID := c.Params("roomID")
 
 	messages := []models.Message{}
 
-	if err := h.db.Model(&models.RoomUser{}).
-		Where("user_id = ? AND room_id = ?", userID, roomID).
-		Find(messages).Error; err != nil {
+	if err := h.db.Model(&models.Message{}).
+		Where("room_id = ?", roomID).
+		Find(&messages).Error; err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Invalid request",
 		})
