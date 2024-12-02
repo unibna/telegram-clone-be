@@ -146,3 +146,19 @@ func (h *UserHandler) ListContactUser(c *fiber.Ctx) error {
 		"data":   contactResponses,
 	})
 }
+
+func (h *UserHandler) GetMe(c *fiber.Ctx) error {
+	var user models.User
+	userID := c.Locals("userID").(uint)
+
+	if err := h.db.First(&user, userID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "User not found",
+		})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status":  fiber.StatusCreated,
+		"data":    user,
+	})
+}

@@ -56,6 +56,7 @@ func SetupRoutes(app *fiber.App, h *Handlers, jwtSecret string) {
 	// User routes
 	users := protected.Group("/users")
 	users.Get("/", h.UserHandler.ListUser)
+	users.Get("/me", h.UserHandler.GetMe)
 	users.Post("/add_contact", h.UserHandler.AddContactUser)
 	users.Get("/list_contact", h.UserHandler.ListContactUser)
 }
