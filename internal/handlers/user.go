@@ -3,6 +3,7 @@ package handlers
 import (
 	"chat-app/internal/models"
 	"fmt"
+
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
@@ -137,7 +138,7 @@ func (h *UserHandler) ListContactUser(c *fiber.Ctx) error {
 			UserName: contact.ContactUser.Username,
 			Email:    contact.ContactUser.Email,
 			IsOnline: contact.ContactUser.IsOnline,
-			LastSeen: contact.ContactUser.LastSeen.String(),
+			LastSeen: contact.LastSeen.String(),
 		})
 	}
 
@@ -158,7 +159,41 @@ func (h *UserHandler) GetMe(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  fiber.StatusCreated,
-		"data":    user,
+		"status": fiber.StatusOK,
+		"data":   user,
+	})
+}
+
+func (h *UserHandler) ListUserRooms(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(uint)
+	roomUsers := []models.RoomUser{}
+	if err := h.db.Model(&models.RoomUser{}).
+		Where("user_id = ?", userID).
+		Find(&roomUsers).Error; err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid request",
+		})
+	}
+
+	roomIDs := []uint{}
+
+	for _, roomUser := range roomUsers {
+		roomIDs = append(roomIDs, roomUser.RoomID)
+	}
+
+	rooms := []models.Room{}
+
+	if err := h.db.Model(&models.Room{}).
+		Where("id IN ?", roomIDs).
+		Find(&rooms).Error; err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid request",
+		})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status":  fiber.StatusOK,
+		"message": "Get user rooms successfully",
+		"data":    rooms,
 	})
 }

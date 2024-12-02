@@ -35,6 +35,7 @@ func SetupRoutes(app *fiber.App, h *Handlers, jwtSecret string) {
 	auth := api.Group("/auth")
 	auth.Post("/register", h.AuthHandler.Register)
 	auth.Post("/login", h.AuthHandler.Login)
+	auth.Post("/refresh-token", h.AuthHandler.RefreshToken)
 
 	// Protected routes
 	protected := api.Group("/", middleware.AuthMiddleware(jwtSecret))
@@ -50,13 +51,13 @@ func SetupRoutes(app *fiber.App, h *Handlers, jwtSecret string) {
 	rooms := protected.Group("/rooms")
 	rooms.Post("/", h.RoomHandler.CreateRoom)
 	rooms.Post("/:roomID/join", h.RoomHandler.JoinRoom)
-	rooms.Get("/me", h.RoomHandler.GetMyChatRooms)
 	rooms.Get("/:roomID/messages", h.RoomHandler.GetRoomMessages)
 
 	// User routes
 	users := protected.Group("/users")
 	users.Get("/", h.UserHandler.ListUser)
 	users.Get("/me", h.UserHandler.GetMe)
-	users.Post("/add_contact", h.UserHandler.AddContactUser)
-	users.Get("/list_contact", h.UserHandler.ListContactUser)
+	users.Get("/rooms", h.UserHandler.ListUserRooms)
+	users.Post("/contacts", h.UserHandler.AddContactUser)
+	users.Get("/contacts", h.UserHandler.ListContactUser)
 }

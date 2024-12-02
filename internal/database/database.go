@@ -3,6 +3,7 @@ package database
 import (
 	"chat-app/config"
 	"fmt"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -19,7 +20,7 @@ func InitDB(config *config.Config) (*gorm.DB, error) {
 
 	// Cấu hình GORM
 	gormConfig := &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent), // Tắt SQL logging
+		Logger:                                   logger.Default.LogMode(logger.Silent), // Tắt SQL logging
 		DisableForeignKeyConstraintWhenMigrating: true,
 	}
 
@@ -27,6 +28,8 @@ func InitDB(config *config.Config) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// db.AutoMigrate(&models.Contact{})
 
 	// Cấu hình connection pool
 	sqlDB, err := db.DB()
@@ -38,4 +41,4 @@ func InitDB(config *config.Config) (*gorm.DB, error) {
 	sqlDB.SetMaxOpenConns(100)
 
 	return db, nil
-} 
+}

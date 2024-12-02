@@ -98,7 +98,7 @@ func (h *RoomHandler) GetMyChatRooms(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  fiber.StatusCreated,
+		"status":  fiber.StatusOK,
 		"message": "Get user rooms successfully",
 		"data":    rooms,
 	})
