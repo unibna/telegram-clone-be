@@ -25,7 +25,6 @@ func SetupRoutes(app *fiber.App, h *Handlers, jwtSecret string) {
 		}
 		return fiber.ErrUpgradeRequired
 	})
-	app.Use("/ws", middleware.AuthMiddleware(jwtSecret))
 	app.Get("/ws", websocket.New(h.WSHandler.HandleWebSocket))
 
 	// API routes

@@ -2,14 +2,15 @@ package handlers
 
 import (
 	"chat-app/internal/models"
-	"chat-app/pkg/utils"
 	ws "chat-app/internal/websocket"
+	"chat-app/pkg/utils"
 	"encoding/json"
-	"github.com/gofiber/websocket/v2"
-	"gorm.io/gorm"
 	"log"
 	"strings"
 	"time"
+
+	"github.com/gofiber/websocket/v2"
+	"gorm.io/gorm"
 )
 
 type WebSocketHandler struct {
@@ -28,17 +29,25 @@ func NewWebSocketHandler(db *gorm.DB, secret string) *WebSocketHandler {
 
 func (h *WebSocketHandler) HandleWebSocket(c *websocket.Conn) {
 	log.Println("New WebSocket connection attempt...")
-	
+
+	log.Println(c.Headers("Authorization"))
+
 	// Extract token from Authorization header
 	authHeader := c.Headers("Authorization")
+
+	log.Println(c.Query("access_token"))
+	// if not, extract from query string
 	if authHeader == "" {
-		log.Println("Missing Authorization header")
-		return
+		authHeader = c.Query("access_token")
+		if authHeader == "" {
+			log.Println("Missing token in query string")
+			return
+		}
 	}
 
 	// Remove Bearer prefix
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-	
+
 	// Parse and validate token
 	userID, err := utils.ValidateToken(tokenString, h.secret)
 	if err != nil {
@@ -64,14 +73,14 @@ func (h *WebSocketHandler) HandleWebSocket(c *websocket.Conn) {
 		h.writePump(client)
 		close(done)
 	}()
-	
+
 	go h.readPump(client, done)
 
 	log.Printf("WebSocket handlers started for user %d", userID)
 
 	// Update user status
 	if err := h.db.Model(&models.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
-		"is_online":  true,
+		"is_online": true,
 		"last_seen": time.Now(),
 	}).Error; err != nil {
 		log.Printf("Error updating user status: %v", err)
@@ -92,7 +101,7 @@ func (h *WebSocketHandler) readPump(client *ws.Client, done chan struct{}) {
 		client.Conn.Close()
 		// Update user status when disconnected
 		if err := h.db.Model(&models.User{}).Where("id = ?", client.UserID).Updates(map[string]interface{}{
-			"is_online":  false,
+			"is_online": false,
 			"last_seen": time.Now(),
 		}).Error; err != nil {
 			log.Printf("Error updating user offline status: %v", err)
@@ -104,7 +113,7 @@ func (h *WebSocketHandler) readPump(client *ws.Client, done chan struct{}) {
 		log.Printf("Error setting read deadline for user %d: %v", client.UserID, err)
 		return
 	}
-	
+
 	client.Conn.SetPongHandler(func(string) error {
 		err := client.Conn.SetReadDeadline(time.Now().Add(ws.PongWait))
 		if err != nil {
@@ -128,7 +137,7 @@ func (h *WebSocketHandler) readPump(client *ws.Client, done chan struct{}) {
 				}
 				return
 			}
-			
+
 			log.Printf("Received message type %d from user %d", messageType, client.UserID)
 
 			// Handle ping message
