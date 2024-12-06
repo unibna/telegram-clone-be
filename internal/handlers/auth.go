@@ -116,7 +116,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		},
 	})
 }
-
+//add new cmt
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	var loginData struct {
 		Username string `json:"username"`
